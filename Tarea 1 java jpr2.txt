@@ -1,0 +1,214 @@
+Tarea 1 java 
+
+public class hola mundo {
+
+    public static void main(String[] args) {
+
+        Scanner sc = new Scanner(System.in);
+
+        // 1. ECUACIÓN CUADRÁTICA
+        System.out.println("=== 1. ECUACIÓN CUADRÁTICA ===");
+        System.out.print("Ingrese a: ");
+        double a = sc.nextDouble();
+        System.out.print("Ingrese b: ");
+        double b = sc.nextDouble();
+        System.out.print("Ingrese c: ");
+        double c = sc.nextDouble();
+
+        if (a == 0) {
+            System.out.println("No es una ecuación cuadrática.");
+        } else {
+            double d = Math.pow(b, 2) - 4 * a * c;
+
+            if (d > 0) {
+                double x1 = (-b + Math.sqrt(d)) / (2 * a);
+                double x2 = (-b - Math.sqrt(d)) / (2 * a);
+                System.out.println("Dos soluciones: " + x1 + " y " + x2);
+            } else if (d == 0) {
+                System.out.println("Una solución: " + (-b / (2 * a)));
+            } else {
+                System.out.println("No tiene soluciones reales.");
+            }
+        }
+
+        // 2. PAR O IMPAR
+        System.out.println("\n=== 2. PAR O IMPAR ===");
+        System.out.print("Ingrese un número: ");
+        int num = sc.nextInt();
+
+        String resultado = (num % 2 == 0) ? "Par" : "Impar";
+        System.out.println("Resultado: " + resultado);
+
+        // 3. AÑO BISIESTO
+        System.out.println("\n=== 3. AÑO BISIESTO ===");
+        System.out.print("Ingrese un año: ");
+        int anio = sc.nextInt();
+
+        if ((anio % 4 == 0 && anio % 100 != 0) || (anio % 400 == 0)) {
+            System.out.println("Es bisiesto.");
+        } else {
+            System.out.println("No es bisiesto.");
+        }
+
+        // 4. TERCERA EDAD
+        System.out.println("\n=== 4. TERCERA EDAD ===");
+        sc.nextLine(); // limpiar buffer
+        System.out.print("Ingrese su nombre: ");
+        String nombre = sc.nextLine();
+        System.out.print("Ingrese su edad: ");
+        int edad = sc.nextInt();
+
+        if (edad >= 70) {
+            System.out.println(nombre + " tiene prioridad en la fila.");
+        } else {
+            System.out.println(nombre + " no pertenece a la tercera edad.");
+        }
+
+        // 5. MAYOR DE TRES
+        System.out.println("\n=== 5. MAYOR DE TRES ===");
+        System.out.print("Número 1: ");
+        double n1 = sc.nextDouble();
+        System.out.print("Número 2: ");
+        double n2 = sc.nextDouble();
+        System.out.print("Número 3: ");
+        double n3 = sc.nextDouble();
+
+        if (n1 >= n2 && n1 >= n3) {
+            System.out.println("El mayor es: " + n1);
+        } else if (n2 >= n1 && n2 >= n3) {
+            System.out.println("El mayor es: " + n2);
+        } else {
+            System.out.println("El mayor es: " + n3);
+        }
+
+        // 6. TIPO DE TRIÁNGULO
+        System.out.println("\n=== 6. TIPO DE TRIÁNGULO ===");
+        System.out.print("Lado 1: ");
+        double l1 = sc.nextDouble();
+        System.out.print("Lado 2: ");
+        double l2 = sc.nextDouble();
+        System.out.print("Lado 3: ");
+        double l3 = sc.nextDouble();
+
+        if (l1 == l2 && l2 == l3) {
+            System.out.println("Equilátero");
+        } else if (l1 == l2 || l1 == l3 || l2 == l3) {
+            System.out.println("Isósceles");
+        } else {
+            System.out.println("Escaleno");
+        }
+
+        // 7. IMC
+        System.out.println("\n=== 7. IMC ===");
+        sc.nextLine(); // limpiar buffer
+        System.out.print("Nombre: ");
+        String nombreImc = sc.nextLine();
+        System.out.print("Peso (kg): ");
+        double peso = sc.nextDouble();
+        System.out.print("Altura (m): ");
+        double altura = sc.nextDouble();
+
+        double imc = peso / Math.pow(altura, 2);
+
+        if (imc < 18.5) {
+            System.out.println(nombreImc + " - Bajo peso");
+        } else if (imc < 25) {
+            System.out.println(nombreImc + " - Normal");
+        } else if (imc < 30) {
+            System.out.println(nombreImc + " - Sobrepeso");
+        } else {
+            System.out.println(nombreImc + " - Obesidad");
+        }
+
+        // 8. CALCULADORA
+        System.out.println("\n=== 8. CALCULADORA ===");
+        System.out.print("Número 1: ");
+        double x = sc.nextDouble();
+        System.out.print("Número 2: ");
+        double y = sc.nextDouble();
+        sc.nextLine();
+        System.out.print("Operador (+, -, *, /): ");
+        String op = sc.nextLine();
+
+        if (op.equals("+")) {
+            System.out.println("Resultado: " + (x + y));
+        } else if (op.equals("-")) {
+            System.out.println("Resultado: " + (x - y));
+        } else if (op.equals("*")) {
+            System.out.println("Resultado: " + (x * y));
+        } else if (op.equals("/")) {
+            if (y != 0) {
+                System.out.println("Resultado: " + (x / y));
+            } else {
+                System.out.println("No se puede dividir por cero.");
+            }
+        } else {
+            System.out.println("Operador inválido.");
+        }
+
+        // 9. CALIFICACIÓN
+        System.out.println("\n=== 9. CALIFICACIÓN ===");
+        System.out.print("Ingrese la nota (0-100): ");
+        int nota = sc.nextInt();
+
+        if (nota >= 90) {
+            System.out.println("A");
+        } else if (nota >= 80) {
+            System.out.println("B");
+        } else if (nota >= 70) {
+            System.out.println("C");
+        } else if (nota >= 60) {
+            System.out.println("D");
+        } else {
+            System.out.println("F");
+        }
+
+        // 10. DÍA DE LA SEMANA
+        System.out.println("\n=== 10. DÍA DE LA SEMANA ===");
+        System.out.print("Ingrese un número (1-7): ");
+        int dia = sc.nextInt();
+
+        if (dia == 1) {
+            System.out.println("Lunes");
+        } else if (dia == 2) {
+            System.out.println("Martes");
+        } else if (dia == 3) {
+            System.out.println("Miércoles");
+        } else if (dia == 4) {
+            System.out.println("Jueves");
+        } else if (dia == 5) {
+            System.out.println("Viernes");
+        } else if (dia == 6) {
+            System.out.println("Sábado");
+        } else if (dia == 7) {
+            System.out.println("Domingo");
+        } else {
+            System.out.println("Número inválido");
+        }
+
+        // 11. VALIDAR TRIÁNGULO
+        System.out.println("\n=== 11. VALIDAR TRIÁNGULO ===");
+        System.out.print("Lado 1: ");
+        double t1 = sc.nextDouble();
+        System.out.print("Lado 2: ");
+        double t2 = sc.nextDouble();
+        System.out.print("Lado 3: ");
+        double t3 = sc.nextDouble();
+
+        if (t1 + t2 > t3 && t1 + t3 > t2 && t2 + t3 > t1) {
+            System.out.println("Forman triángulo");
+
+            if (t1 == t2 && t2 == t3) {
+                System.out.println("Equilátero");
+            } else if (t1 == t2 || t1 == t3 || t2 == t3) {
+                System.out.println("Isósceles");
+            } else {
+                System.out.println("Escaleno");
+            }
+        } else {
+            System.out.println("No forman triángulo");
+        }
+
+        sc.close();
+    }
+}
