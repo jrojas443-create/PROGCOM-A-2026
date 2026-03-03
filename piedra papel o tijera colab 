@@ -1,0 +1,157 @@
+{
+  "nbformat": 4,
+  "nbformat_minor": 0,
+  "metadata": {
+    "colab": {
+      "provenance": [],
+      "authorship_tag": "ABX9TyOIgHjsnzaw8xk4PNplPO7w",
+      "include_colab_link": true
+    },
+    "kernelspec": {
+      "name": "python3",
+      "display_name": "Python 3"
+    },
+    "language_info": {
+      "name": "python"
+    }
+  },
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "view-in-github",
+        "colab_type": "text"
+      },
+      "source": [
+        "<a href=\"https://colab.research.google.com/github/jrojas443-create/PROGCOM-A-2026/blob/main/piedra%20papel%20o%20tijera%20colab%20\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "xCWkm6u8JX1o",
+        "outputId": "5069d3d5-fbf5-4175-cfa4-6d1f03447ac5"
+      },
+      "outputs": [
+        {
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "Recordando que una ecuacion ciadratica es\n",
+            "ingrese el valor de a: 54\n",
+            "ingrese el valor de b: 5\n",
+            "ingrese el valor de c: 568\n"
+          ]
+        }
+      ],
+      "source": [
+        "print(\"Recordando que una ecuacion ciadratica es\")\n",
+        "a=int(input(\"ingrese el valor de a: \"))\n",
+        "b=int(input(\"ingrese el valor de b: \"))\n",
+        "c=int(input(\"ingrese el valor de c: \"))\n"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "#piedra, papel o tijera\n",
+        "import random\n",
+        "yo = 0\n",
+        "while yo < 1 or yo > 3:\n",
+        "  try:\n",
+        "    yo = int(input(\"Elige entre 1=piedra, 2=papel, 3=tijera: \"))\n",
+        "    if yo < 1 or yo > 3:\n",
+        "      print(\"Ese valor no es válido. Por favor, elige 1, 2 o 3.\")\n",
+        "  except ValueError:\n",
+        "    print(\"Entrada no válida. Por favor, ingresa un número (1, 2 o 3).\")"
+      ],
+      "metadata": {
+        "id": "eZyUfMIfQYB2",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "outputId": "6797ab5c-54e0-4c98-b42f-0b5e5db14d7a"
+      },
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Elige entre 1=piedra, 2=papel, 3=tijera: tren\n",
+            "Entrada no válida. Por favor, ingresa un número (1, 2 o 3).\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "m=random.randint(1,3)\n",
+        "m"
+      ],
+      "metadata": {
+        "id": "2i3vUCnGSea7",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "outputId": "3bf81467-4666-4bf1-92de-d82245141add"
+      },
+      "execution_count": 10,
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "2"
+            ]
+          },
+          "metadata": {},
+          "execution_count": 10
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "if yo==m: print(\"empate. Ambos elegimos piedra\")\n",
+        "elif yo==1 and m==2: print(\"perdiste. maquina eligio papel\")\n",
+        "elif yo==2 and m==3: print(\"perdiste. maquina eligio tijera\")\n",
+        "elif yo==3 and m==1: print(\"perdiste. maquina eligio piedra\")\n",
+        "else: print(\"Ganaste!!!\")"
+      ],
+      "metadata": {
+        "id": "s5Z4s2LuRByd",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "outputId": "4172b372-71e1-4945-921c-4e01b5d60f87"
+      },
+      "execution_count": 31,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "empate. Ambos elegimos piedra\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# La lógica de robustecimiento de código se ha integrado en la celda anterior para una mejor validación del input."
+      ],
+      "metadata": {
+        "id": "DVoRjViHTYX7"
+      },
+      "execution_count": 17,
+      "outputs": []
+    }
+  ]
+}
