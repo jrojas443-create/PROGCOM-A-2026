@@ -1,0 +1,174 @@
+ejercicio1.
+
+import java.util.Scanner;
+
+public class Estudiantes {
+    public static void main(String[] args) {
+
+        Scanner sc = new Scanner(System.in);
+
+        String nombres[] = new String[10];
+        double notas[] = new double[10];
+        double suma = 0;
+
+        for(int i = 0; i < 10; i++){
+            System.out.print("Nombre: ");
+            nombres[i] = sc.next();
+
+            System.out.print("Nota: ");
+            notas[i] = sc.nextDouble();
+
+            suma = suma + notas[i];
+        }
+
+        double promedio = suma / 10;
+        System.out.println("Promedio: " + promedio);
+
+        System.out.println("Mayores al promedio:");
+        for(int i = 0; i < 10; i++){
+            if(notas[i] > promedio){
+                System.out.println(nombres[i] + " " + notas[i]);
+            }
+        }
+
+        double mayor = notas[0];
+        int pos = 0;
+
+        for(int i = 0; i < 10; i++){
+            if(notas[i] > mayor){
+                mayor = notas[i];
+                pos = i;
+            }
+        }
+
+        System.out.println("Mayor nota: " + mayor);
+        System.out.println("La obtuvo: " + nombres[pos]);
+
+    }
+}
+
+
+
+ejercicio2.
+import java.util.Scanner;
+
+public class Votacion {
+    public static void main(String[] args) {
+
+        Scanner sc = new Scanner(System.in);
+
+        int votos[] = new int[5];
+
+        System.out.print("Cuántos votantes: ");
+        int n = sc.nextInt();
+
+        for(int i = 0; i < n; i++){
+            System.out.print("Vote por candidato (1-5): ");
+            int voto = sc.nextInt();
+            votos[voto-1] = votos[voto-1] + 1;
+        }
+
+        for(int i = 0; i < 5; i++){
+            System.out.println("Candidato " + (i+1) + ": " + votos[i]);
+        }
+
+        int mayor1 = 0, mayor2 = 0;
+        int pos1 = 0, pos2 = 0;
+
+        for(int i = 0; i < 5; i++){
+            if(votos[i] > mayor1){
+                mayor2 = mayor1;
+                pos2 = pos1;
+
+                mayor1 = votos[i];
+                pos1 = i;
+            }
+            else if(votos[i] > mayor2){
+                mayor2 = votos[i];
+                pos2 = i;
+            }
+        }
+
+        System.out.println("Segunda vuelta: " + (pos1+1) + " y " + (pos2+1));
+
+        int v1 = 0, v2 = 0;
+
+        for(int i = 0; i < n; i++){
+            System.out.print("Vote 1 o 2: ");
+            int voto = sc.nextInt();
+
+            if(voto == 1){
+                v1++;
+            }else{
+                v2++;
+            }
+        }
+
+        if(v1 > v2){
+            System.out.println("Ganador candidato " + (pos1+1));
+        }else{
+            System.out.println("Ganador candidato " + (pos2+1));
+        }
+
+    }
+}
+
+
+ejercicio3.
+import java.util.Scanner;
+
+public class MenuVentas {
+    public static void main(String[] args) {
+
+        Scanner scanner = new Scanner(System.in);
+
+        int total = 0;
+        int opcion = 1; // Para que el bucle se ejecute al menos una vez
+
+        System.out.println("Menu");
+        System.out.println("1 Combo 1 - 20000");
+        System.out.println("2 Combo 2 - 25000");
+        System.out.println("3 Combo 3 - 18000");
+        System.out.println("4 Combo 4 - 24500");
+        System.out.println("5 Papas - 3000");
+        System.out.println("6 Jugo natural - 7000");
+        System.out.println("7 Cerveza - 3500");
+        System.out.println("8 Agua - 4000");
+        System.out.println("9 Gaseosa - 2500");
+        System.out.println("0 Salir");
+
+        while (opcion != 0) {
+
+            System.out.print("Que desea comprar: ");
+            opcion = scanner.nextInt();
+
+            if (opcion == 1) {
+                total = total + 20000;
+            } else if (opcion == 2) {
+                total = total + 25000;
+            } else if (opcion == 3) {
+                total = total + 18000;
+            } else if (opcion == 4) {
+                total = total + 24500;
+            } else if (opcion == 5) {
+                total = total + 3000;
+            } else if (opcion == 6) {
+                total = total + 7000;
+            } else if (opcion == 7) {
+                total = total + 3500;
+            } else if (opcion == 8) {
+                total = total + 4000;
+            } else if (opcion == 9) {
+                total = total + 2500;
+            } else if (opcion == 0) {
+                break;
+            } else {
+                System.out.println("Opción no válida, por favor intente de nuevo.");
+            }
+        }
+
+        System.out.println("Total recaudado en el dia: " + total);
+
+        scanner.close();
+    }
+}
