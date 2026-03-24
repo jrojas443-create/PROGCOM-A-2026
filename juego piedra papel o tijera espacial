@@ -1,0 +1,1175 @@
+"""
+PIEDRA · PAPEL · TIJERA · LAGARTO · SPOCK
+==========================================
+Temática espacial — paleta azul oscuro/cian.
+Sistema de perfiles, modos 1/2/3 jugadores,
+fondo estelar animado.
+"""
+
+import tkinter as tk
+from tkinter import messagebox
+import random
+import json
+import os
+import math
+
+# ══════════════════════════════════════════════════════════════
+#  CONFIGURACION VISUAL
+# ══════════════════════════════════════════════════════════════
+PALETA = {
+    "bg":      "#090e1a",
+    "panel":   "#111d35",
+    "card":    "#162040",
+    "card2":   "#1e2e55",
+    "accent":  "#00d4ff",
+    "accent2": "#0099cc",
+    "gold":    "#7b5ea7",
+    "teal":    "#00ffcc",
+    "text":    "#d0e8ff",
+    "text2":   "#6a9ec0",
+    "muted":   "#2a4a70",
+    "win":     "#00ff88",
+    "lose":    "#ff3355",
+    "tie":     "#7b5ea7",
+    "btn_h":   "#00d4ff",
+}
+
+TEMAS = {
+    1: {**PALETA, "accent": "#00d4ff", "accent2": "#0099cc", "btn_h": "#00d4ff"},
+    2: {**PALETA, "accent": "#00ffcc", "accent2": "#00cc99", "btn_h": "#00ffcc"},
+    3: {**PALETA, "accent": "#cc66ff", "accent2": "#9933cc", "btn_h": "#cc66ff"},
+}
+
+FUENTES = {
+    "normal": ("Consolas", 12),
+    "bold":   ("Consolas", 13, "bold"),
+    "titulo": ("Consolas", 22, "bold"),
+    "small":  ("Consolas", 9),
+    "large":  ("Consolas", 28, "bold"),
+    "medium": ("Consolas", 11),
+}
+
+# ══════════════════════════════════════════════════════════════
+#  DATOS DEL JUEGO
+# ══════════════════════════════════════════════════════════════
+OPCIONES = ["Piedra", "Papel", "Tijera", "Lagarto", "Spock"]
+
+EMOJIS = {
+    "Piedra":  "✊",
+    "Papel":   "✋",
+    "Tijera":  "✌️",
+    "Lagarto": "🦎",
+    "Spock":   "🖖",
+}
+
+# (ganador, perdedor) -> descripcion
+REGLAS = {
+    ("Tijera",  "Papel"):   "Tijera corta Papel",
+    ("Papel",   "Piedra"):  "Papel cubre Piedra",
+    ("Piedra",  "Lagarto"): "Piedra aplasta Lagarto",
+    ("Lagarto", "Spock"):   "Lagarto envenena Spock",
+    ("Spock",   "Tijera"):  "Spock rompe Tijera",
+    ("Tijera",  "Lagarto"): "Tijera decapita Lagarto",
+    ("Lagarto", "Papel"):   "Lagarto come Papel",
+    ("Papel",   "Spock"):   "Papel refuta Spock",
+    ("Spock",   "Piedra"):  "Spock vaporiza Piedra",
+    ("Piedra",  "Tijera"):  "Piedra aplasta Tijera",
+}
+
+VENCE = {op: {b for (a, b) in REGLAS if a == op} for op in OPCIONES}
+
+AVATARES = ["🚀", "🛸", "👨‍🚀", "🌠", "🪐", "🌙", "🔭", "💫", "🌌", "🛰️", "☄️", "🌟"]
+
+PERFILES_FILE = os.path.join(os.path.expanduser("~"), ".spacerps_perfiles.json")
+
+
+# ══════════════════════════════════════════════════════════════
+#  LOGICA DEL JUEGO
+# ══════════════════════════════════════════════════════════════
+def resolver(a: str, b: str) -> tuple:
+    """Devuelve ('a'|'b'|'empate', razon)."""
+    if a == b:
+        return "empate", "Empate"
+    if b in VENCE[a]:
+        return "a", REGLAS.get((a, b), f"{a} vence a {b}")
+    return "b", REGLAS.get((b, a), f"{b} vence a {a}")
+
+
+# ══════════════════════════════════════════════════════════════
+#  GESTION DE PERFILES
+# ══════════════════════════════════════════════════════════════
+def cargar_perfiles() -> dict:
+    try:
+        with open(PERFILES_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
+def guardar_perfiles(data: dict) -> None:
+    try:
+        with open(PERFILES_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except OSError:
+        pass
+
+
+def actualizar_stats(perfiles: dict, nombre: str, gano: bool) -> None:
+    if nombre not in perfiles:
+        return
+    p = perfiles[nombre]
+    p["games"] = p.get("games", 0) + 1
+    if gano:
+        p["wins"] = p.get("wins", 0) + 1
+    guardar_perfiles(perfiles)
+
+
+def win_rate(wins: int, games: int) -> str:
+    return f"{int(wins / games * 100)}%" if games else "0%"
+
+
+# ══════════════════════════════════════════════════════════════
+#  HELPERS DE UI
+# ══════════════════════════════════════════════════════════════
+def mk_label(parent, texto, fg, fuente, wrap=0) -> tk.Label:
+    lbl = tk.Label(parent, text=texto, bg=parent["bg"], fg=fg, font=fuente)
+    if wrap:
+        lbl.configure(wraplength=wrap, justify="left")
+    return lbl
+
+
+def mk_btn(parent, texto, bg, fg, cmd, px=12, py=6) -> tk.Button:
+    b = tk.Button(
+        parent, text=texto, bg=bg, fg=fg,
+        font=FUENTES["bold"], relief="flat", bd=0,
+        padx=px, pady=py, cursor="hand2",
+        activebackground=PALETA["btn_h"], activeforeground=PALETA["bg"],
+        command=cmd,
+    )
+    b.bind("<Enter>", lambda _: b.configure(bg=PALETA["btn_h"], fg=PALETA["bg"]))
+    b.bind("<Leave>", lambda _: b.configure(bg=bg, fg=fg))
+    return b
+
+
+def mk_sep(parent, color="#00d4ff", height=1) -> tk.Frame:
+    return tk.Frame(parent, bg=color, height=height)
+
+
+# ══════════════════════════════════════════════════════════════
+#  FONDO ESTELAR ANIMADO
+# ══════════════════════════════════════════════════════════════
+STAR_COLORS = ["#ffffff", "#d0e8ff", "#a0c4ff", "#00d4ff", "#7b5ea7", "#00ffcc"]
+SHIP_EMOJIS = ["🚀", "🛸", "🛰️"]
+
+
+class FondoEstelar(tk.Canvas):
+    """Campo de estrellas parpadeantes con naves moviendose."""
+
+    def __init__(self, parent, w: int, h: int):
+        super().__init__(parent, width=w, height=h,
+                         bg=PALETA["bg"], highlightthickness=0)
+        self.w, self.h = w, h
+        self._frame = 0
+        self._estrellas = []
+        self._naves = []
+        self._crear_estrellas(130)
+        self._crear_naves(5)
+        self._tick()
+
+    def _crear_estrellas(self, n: int) -> None:
+        for _ in range(n):
+            x     = random.uniform(0, self.w)
+            y     = random.uniform(0, self.h)
+            fase  = random.uniform(0, 2 * math.pi)
+            vel   = random.uniform(0.015, 0.05)
+            color = random.choice(STAR_COLORS)
+            size  = random.choices([1, 2, 3], weights=[6, 3, 1])[0]
+            if size < 3:
+                d   = size + 1
+                cid = self.create_oval(x, y, x + d, y + d, fill=color, outline="")
+            else:
+                cid = self.create_text(x, y, text="✦", fill=color,
+                                       font=("Consolas", random.choice([8, 9, 10])))
+            self._estrellas.append({"cid": cid, "color": color,
+                                    "fase": fase, "vel": vel})
+
+    def _crear_naves(self, n: int) -> None:
+        for _ in range(n):
+            x   = random.uniform(20, self.w - 20)
+            y   = random.uniform(20, self.h - 20)
+            vx  = random.choice([-1, 1]) * random.uniform(0.5, 1.3)
+            vy  = random.choice([-1, 1]) * random.uniform(0.3, 0.9)
+            cid = self.create_text(x, y, text=random.choice(SHIP_EMOJIS),
+                                   font=("Segoe UI Emoji", 15), tags="nave")
+            self._naves.append({"cid": cid, "x": x, "y": y, "vx": vx, "vy": vy})
+
+    def _tick(self) -> None:
+        f = self._frame = self._frame + 1
+
+        for s in self._estrellas:
+            v = (math.sin(f * s["vel"] + s["fase"]) + 1) / 2
+            r, g, b = (int(s["color"][i:i + 2], 16) for i in (1, 3, 5))
+            k   = 0.25 + 0.75 * v
+            col = f"#{int(r*k):02x}{int(g*k):02x}{int(b*k):02x}"
+            try:
+                self.itemconfig(s["cid"], fill=col)
+            except tk.TclError:
+                pass
+
+        for nav in self._naves:
+            nav["vx"] = max(-2.0, min(2.0, nav["vx"] + random.uniform(-0.05, 0.05)))
+            nav["vy"] = max(-2.0, min(2.0, nav["vy"] + random.uniform(-0.05, 0.05)))
+            nav["x"] += nav["vx"]
+            nav["y"] += nav["vy"]
+            if not (10 < nav["x"] < self.w - 10): nav["vx"] *= -1
+            if not (10 < nav["y"] < self.h - 10): nav["vy"] *= -1
+            try:
+                self.coords(nav["cid"], nav["x"], nav["y"])
+            except tk.TclError:
+                pass
+
+        self.tag_raise("nave")
+        self.after(36, self._tick)
+
+
+# ══════════════════════════════════════════════════════════════
+#  FORMULARIO DE PERFIL (reutilizable)
+# ══════════════════════════════════════════════════════════════
+GENEROS = ["Masculino", "Femenino", "No binario", "Prefiero no decir"]
+
+
+class FormPerfil(tk.Frame):
+    """Widget de formulario para crear/editar un perfil."""
+
+    def __init__(self, parent, datos=None):
+        super().__init__(parent, bg=PALETA["bg"])
+        C     = PALETA
+        datos = datos or {}
+        self._av_var  = tk.StringVar(value=datos.get("avatar", AVATARES[0]))
+        self._gen_var = tk.StringVar(value=datos.get("genero", GENEROS[-1]))
+        self._av_btns = {}
+
+        # Avatar
+        mk_label(self, "Avatar:", C["text2"], FUENTES["small"]).pack(anchor="w")
+        grid = tk.Frame(self, bg=C["bg"])
+        grid.pack(pady=(2, 10))
+        for i, av in enumerate(AVATARES):
+            b = tk.Button(grid, text=av, bg=C["card"], fg=C["text"],
+                          font=("Segoe UI Emoji", 17), relief="flat", bd=0,
+                          padx=5, pady=3, cursor="hand2",
+                          command=lambda a=av: self._sel_avatar(a))
+            b.grid(row=i // 6, column=i % 6, padx=2, pady=2)
+            self._av_btns[av] = b
+        self._sel_avatar(self._av_var.get())
+
+        # Campos
+        campos = tk.Frame(self, bg=C["bg"])
+        campos.pack(fill="x")
+
+        def campo(label, row, valor="") -> tk.Entry:
+            mk_label(campos, label, C["text2"], FUENTES["small"]).grid(
+                row=row, column=0, sticky="w", pady=5, padx=(0, 10))
+            e = tk.Entry(campos, width=22, bg=C["card"], fg=C["text"],
+                         insertbackground=C["accent"], relief="flat",
+                         font=FUENTES["normal"])
+            e.insert(0, valor)
+            e.grid(row=row, column=1, sticky="w")
+            return e
+
+        self._e_nombre = campo("Nombre:", 0, datos.get("nombre", ""))
+        self._e_edad   = campo("Edad:",   1, str(datos.get("edad", "")))
+
+        # Genero
+        mk_label(campos, "Genero:", C["text2"], FUENTES["small"]).grid(
+            row=2, column=0, sticky="w", pady=5, padx=(0, 10))
+        gf = tk.Frame(campos, bg=C["bg"])
+        gf.grid(row=2, column=1, sticky="w")
+        for g in GENEROS:
+            tk.Radiobutton(gf, text=g, variable=self._gen_var, value=g,
+                           bg=C["bg"], fg=C["text"], selectcolor=C["card"],
+                           activebackground=C["bg"], font=FUENTES["small"],
+                           cursor="hand2").pack(side="left", padx=3)
+
+    def _sel_avatar(self, av: str) -> None:
+        self._av_var.set(av)
+        for a, b in self._av_btns.items():
+            b.configure(bg=PALETA["accent2"] if a == av else PALETA["card"])
+
+    def obtener(self) -> dict:
+        """Valida y devuelve los datos, o None si hay error."""
+        nombre = self._e_nombre.get().strip()
+        edad_s = self._e_edad.get().strip()
+        if not nombre:
+            messagebox.showerror("Error", "El nombre no puede estar vacio.")
+            return None
+        if not edad_s.isdigit() or not (1 <= int(edad_s) <= 120):
+            messagebox.showerror("Error", "Edad invalida (1-120).")
+            return None
+        return {
+            "nombre": nombre,
+            "edad":   int(edad_s),
+            "genero": self._gen_var.get(),
+            "avatar": self._av_var.get(),
+        }
+
+
+# ══════════════════════════════════════════════════════════════
+#  PANTALLA DE LOGIN / GESTION DE PERFILES
+# ══════════════════════════════════════════════════════════════
+class PantallaLogin(tk.Frame):
+
+    def __init__(self, master, on_login):
+        super().__init__(master, bg=PALETA["bg"])
+        self.on_login = on_login
+        self.perfiles = cargar_perfiles()
+        FondoEstelar(self, master.W, master.H).place(x=0, y=0)
+        self._caja = tk.Frame(self, bg=PALETA["bg"])
+        self._caja.place(relx=0.5, rely=0.5, anchor="center")
+        self._vista_lista()
+
+    def _limpiar(self):
+        for w in self._caja.winfo_children():
+            w.destroy()
+
+    # ── Vista lista ──────────────────────────────────────────
+    def _vista_lista(self):
+        self._limpiar()
+        C = PALETA
+        mk_label(self._caja, "◈  SELECCIONA PILOTO  ◈",
+                 C["accent"], FUENTES["titulo"]).pack(pady=(0, 4))
+        mk_label(self._caja, "o crea uno nuevo",
+                 C["text2"], FUENTES["small"]).pack(pady=(0, 16))
+
+        if self.perfiles:
+            for nombre, datos in self.perfiles.items():
+                self._tarjeta(nombre, datos)
+        else:
+            mk_label(self._caja, "Sin perfiles aun. iCrea el primero!",
+                     C["text2"], FUENTES["medium"]).pack(pady=10)
+
+        mk_sep(self._caja, C["accent"]).pack(fill="x", pady=14)
+        mk_btn(self._caja, "+ CREAR NUEVO PERFIL", C["accent2"], C["bg"],
+               self._vista_crear, px=10, py=7).pack(pady=4, ipadx=8, ipady=4)
+
+    def _tarjeta(self, nombre: str, datos: dict):
+        C     = PALETA
+        wins  = datos.get("wins", 0)
+        games = datos.get("games", 0)
+
+        card = tk.Frame(self._caja, bg=C["card"], padx=12, pady=8, cursor="hand2")
+        card.pack(fill="x", pady=3, ipadx=6)
+        tk.Frame(card, bg=C["accent"], width=3).pack(side="left", fill="y", padx=(0, 10))
+
+        info = tk.Frame(card, bg=C["card"])
+        info.pack(side="left", expand=True, fill="x")
+
+        top = tk.Frame(info, bg=C["card"])
+        top.pack(fill="x")
+        mk_label(top, datos.get("avatar", "🚀"), C["text"],
+                 ("Segoe UI Emoji", 20)).pack(side="left", padx=(0, 6))
+        mk_label(top, nombre, C["gold"], FUENTES["bold"]).pack(side="left")
+        mk_label(top,
+                 f"  {datos.get('edad','?')} anos . {datos.get('genero','-')}",
+                 C["text2"], FUENTES["small"]).pack(side="left")
+        mk_label(info,
+                 f"Partidas: {games}  Victorias: {wins}  Win rate: {win_rate(wins, games)}",
+                 C["teal"], FUENTES["small"]).pack(anchor="w")
+
+        acc = tk.Frame(card, bg=C["card"])
+        acc.pack(side="right")
+        mk_btn(acc, "JUGAR",  C["accent2"], C["bg"],
+               lambda n=nombre: self.on_login(n, self.perfiles[n]),
+               px=10, py=4).pack(side="left", padx=3)
+        mk_btn(acc, "EDITAR", C["card2"], C["text2"],
+               lambda n=nombre: self._vista_editar(n),
+               px=8, py=4).pack(side="left", padx=3)
+        mk_btn(acc, "X", C["card2"], C["lose"],
+               lambda n=nombre: self._eliminar(n),
+               px=6, py=4).pack(side="left", padx=3)
+
+        card.bind("<Enter>", lambda _, c=card: c.configure(bg=C["card2"]))
+        card.bind("<Leave>", lambda _, c=card: c.configure(bg=C["card"]))
+
+    def _eliminar(self, nombre: str):
+        if messagebox.askyesno("Eliminar", f"Eliminar el perfil de {nombre}?"):
+            del self.perfiles[nombre]
+            guardar_perfiles(self.perfiles)
+            self._vista_lista()
+
+    # ── Formulario crear/editar ──────────────────────────────
+    def _vista_crear(self):
+        self._vista_form(None)
+
+    def _vista_editar(self, nombre: str):
+        self._vista_form(nombre)
+
+    def _vista_form(self, nombre_edit):
+        self._limpiar()
+        C      = PALETA
+        titulo = "EDITAR PERFIL" if nombre_edit else "CREAR PERFIL"
+        mk_label(self._caja, f"o  {titulo}  o",
+                 C["accent"], FUENTES["titulo"]).pack(pady=(0, 14))
+
+        datos      = self.perfiles.get(nombre_edit, {}) if nombre_edit else {}
+        self._form = FormPerfil(self._caja, datos)
+        self._form.pack()
+
+        mk_sep(self._caja, C["accent"]).pack(fill="x", pady=12)
+        btns = tk.Frame(self._caja, bg=C["bg"])
+        btns.pack()
+        mk_btn(btns, "GUARDAR",  C["accent2"], C["bg"],
+               lambda: self._guardar(nombre_edit), px=16, py=7).pack(side="left", padx=6)
+        mk_btn(btns, "CANCELAR", C["card"], C["text2"],
+               self._vista_lista, px=16, py=7).pack(side="left", padx=6)
+
+    def _guardar(self, nombre_edit):
+        datos = self._form.obtener()
+        if datos is None:
+            return
+        nombre = datos["nombre"]
+        if nombre in self.perfiles and nombre != nombre_edit:
+            messagebox.showerror("Error", f"Ya existe un perfil llamado '{nombre}'.")
+            return
+        # Preservar estadisticas al editar
+        if nombre_edit and nombre_edit in self.perfiles:
+            viejo        = self.perfiles.pop(nombre_edit)
+            datos["wins"]  = viejo.get("wins", 0)
+            datos["games"] = viejo.get("games", 0)
+        else:
+            datos["wins"] = datos["games"] = 0
+        self.perfiles[nombre] = datos
+        guardar_perfiles(self.perfiles)
+        self._vista_lista()
+
+
+# ══════════════════════════════════════════════════════════════
+#  DIALOGO: PERFIL RAPIDO (jugadores adicionales)
+# ══════════════════════════════════════════════════════════════
+class DialogoPerfil(tk.Toplevel):
+
+    def __init__(self, master, num_jugador: int, perfiles: dict):
+        super().__init__(master)
+        self.resultado = None
+        self.perfiles  = perfiles
+        self.configure(bg=PALETA["bg"])
+        self.resizable(False, False)
+        self.title(f"Jugador {num_jugador}")
+        self.grab_set()
+        self._centrar(480, 540)
+        self._build(num_jugador)
+
+    def _centrar(self, w: int, h: int):
+        self.geometry(f"{w}x{h}")
+        self.update_idletasks()
+        x = (self.winfo_screenwidth()  - w) // 2
+        y = (self.winfo_screenheight() - h) // 2
+        self.geometry(f"{w}x{h}+{x}+{y}")
+
+    def _build(self, num: int):
+        C = PALETA
+        mk_label(self, f"o  JUGADOR {num}  o",
+                 C["accent"], FUENTES["titulo"]).pack(pady=(16, 4))
+        mk_label(self, "Selecciona o crea un perfil",
+                 C["text2"], FUENTES["small"]).pack(pady=(0, 10))
+
+        if self.perfiles:
+            mk_label(self, "Perfiles disponibles:",
+                     C["gold"], FUENTES["small"]).pack(anchor="w", padx=22)
+            for nombre, datos in self.perfiles.items():
+                card = tk.Frame(self, bg=C["card"], padx=10, pady=6, cursor="hand2")
+                card.pack(fill="x", padx=22, pady=2)
+                tk.Frame(card, bg=C["accent"], width=3).pack(
+                    side="left", fill="y", padx=(0, 8))
+                info = tk.Frame(card, bg=C["card"])
+                info.pack(side="left", expand=True)
+                mk_label(info,
+                         f"{datos.get('avatar','🚀')}  {nombre}",
+                         C["gold"], FUENTES["bold"]).pack(anchor="w")
+                mk_label(info,
+                         f"{datos.get('edad','?')} anos . {datos.get('genero','-')}  |  "
+                         f"Partidas: {datos.get('games',0)}  Wins: {datos.get('wins',0)}",
+                         C["text2"], FUENTES["small"]).pack(anchor="w")
+                mk_btn(card, "ELEGIR", C["accent2"], C["bg"],
+                       lambda n=nombre: self._elegir(n), px=10, py=4).pack(
+                    side="right", padx=4)
+
+        mk_sep(self, C["accent"]).pack(fill="x", padx=20, pady=8)
+        mk_label(self, "O crea uno nuevo:",
+                 C["gold"], FUENTES["small"]).pack(anchor="w", padx=22)
+
+        self._form = FormPerfil(self)
+        self._form.pack(padx=22, pady=4, fill="x")
+
+        mk_sep(self, C["accent"]).pack(fill="x", padx=20, pady=8)
+        mk_btn(self, "CREAR Y CONTINUAR", C["accent2"], C["bg"],
+               self._crear, px=20, py=8).pack(pady=(0, 12))
+
+    def _elegir(self, nombre: str):
+        self.resultado = nombre
+        self.destroy()
+
+    def _crear(self):
+        datos = self._form.obtener()
+        if datos is None:
+            return
+        if datos["nombre"] in self.perfiles:
+            messagebox.showerror("Error", f"Ya existe '{datos['nombre']}'.")
+            return
+        datos["wins"] = datos["games"] = 0
+        self.perfiles[datos["nombre"]] = datos
+        guardar_perfiles(self.perfiles)
+        self.resultado = datos["nombre"]
+        self.destroy()
+
+
+# ══════════════════════════════════════════════════════════════
+#  DIALOGO: CONFIGURAR PARTIDA
+# ══════════════════════════════════════════════════════════════
+class DialogoPartida(tk.Toplevel):
+
+    def __init__(self, master, perfil_activo: dict, perfiles: dict):
+        super().__init__(master)
+        self.resultado = None   # (modo, rondas, [jugadores])
+        self.perfil    = perfil_activo
+        self.perfiles  = perfiles
+        self.configure(bg=PALETA["bg"])
+        self.resizable(False, False)
+        self.title("Configurar Partida")
+        self.grab_set()
+        self._centrar(460, 400)
+        self._build()
+
+    def _centrar(self, w: int, h: int):
+        self.geometry(f"{w}x{h}")
+        self.update_idletasks()
+        x = (self.winfo_screenwidth()  - w) // 2
+        y = (self.winfo_screenheight() - h) // 2
+        self.geometry(f"{w}x{h}+{x}+{y}")
+
+    def _build(self):
+        C  = PALETA
+        av = self.perfil.get("avatar", "🚀")
+        nm = self.perfil.get("nombre", "?")
+        mk_label(self, f"{av}  Hola, {nm}!",
+                 C["gold"], FUENTES["bold"]).pack(pady=(20, 4))
+        mk_label(self, "Configura tu partida",
+                 C["text2"], FUENTES["small"]).pack(pady=(0, 12))
+
+        # Modo
+        mf = tk.Frame(self, bg=C["bg"])
+        mf.pack(pady=4)
+        mk_label(mf, "Modo de juego:", C["text2"], FUENTES["small"]).pack(anchor="w")
+        self._modo_var = tk.IntVar(value=1)
+        for txt, val in [("vs Maquina  (solo tu)", 1),
+                         ("2 Jugadores",            2),
+                         ("3 Jugadores",            3)]:
+            tk.Radiobutton(mf, text=txt, variable=self._modo_var, value=val,
+                           bg=C["bg"], fg=C["text"], selectcolor=C["card2"],
+                           activebackground=C["bg"], font=FUENTES["normal"],
+                           cursor="hand2").pack(anchor="w", pady=2)
+
+        mk_sep(self, C["accent"]).pack(fill="x", padx=20, pady=10)
+
+        # Rondas
+        rf = tk.Frame(self, bg=C["bg"])
+        rf.pack(pady=4)
+        mk_label(rf, "Numero de rondas:",
+                 C["text2"], FUENTES["small"]).pack(anchor="w")
+        rb_f = tk.Frame(rf, bg=C["bg"])
+        rb_f.pack(pady=4)
+        self._rondas_var = tk.IntVar(value=5)
+        for n in [3, 5, 7, 10]:
+            rb = tk.Radiobutton(rb_f, text=str(n),
+                                variable=self._rondas_var, value=n,
+                                bg=C["card"], fg=C["text"],
+                                selectcolor=C["accent2"],
+                                activebackground=C["card"],
+                                font=("Consolas", 15, "bold"),
+                                indicatoron=False, relief="flat", bd=0,
+                                padx=16, pady=8, cursor="hand2", width=3)
+            rb.pack(side="left", padx=4)
+            rb.bind("<Enter>", lambda _, b=rb: b.configure(bg=C["btn_h"]))
+            rb.bind("<Leave>", lambda _, b=rb: b.configure(bg=C["card"]))
+
+        cf = tk.Frame(rf, bg=C["bg"])
+        cf.pack(pady=6)
+        mk_label(cf, "Personalizado:", C["text2"], FUENTES["small"]).pack(
+            side="left", padx=(0, 6))
+        self._e_custom = tk.Entry(
+            cf, width=5, bg=C["card"], fg=C["text"],
+            insertbackground=C["accent"], relief="flat",
+            font=FUENTES["normal"], justify="center")
+        self._e_custom.pack(side="left")
+        self._e_custom.bind("<KeyRelease>", self._sync_custom)
+
+        mk_sep(self, C["accent"]).pack(fill="x", padx=20, pady=8)
+        mk_btn(self, "SIGUIENTE  >", C["accent2"], C["bg"],
+               self._confirmar, px=28, py=10).pack(pady=4)
+
+    def _sync_custom(self, _):
+        txt = self._e_custom.get().strip()
+        if txt.isdigit() and int(txt) > 0:
+            self._rondas_var.set(int(txt))
+
+    def _confirmar(self):
+        modo   = self._modo_var.get()
+        rondas = max(1, self._rondas_var.get())
+        nombre_j1 = self.perfil.get("nombre", "Jugador 1")
+        nombres   = [nombre_j1]
+
+        for i in range(modo - 1):
+            dlg = DialogoPerfil(self, i + 2, self.perfiles)
+            self.wait_window(dlg)
+            if dlg.resultado is None:
+                return
+            self.perfiles = cargar_perfiles()
+            nombres.append(dlg.resultado)
+
+        self.resultado = (modo, rondas, nombres)
+        self.destroy()
+
+
+# ══════════════════════════════════════════════════════════════
+#  VENTANA DE JUEGO
+# ══════════════════════════════════════════════════════════════
+class VentanaJuego(tk.Frame):
+
+    def __init__(self, master, modo: int, max_rondas: int,
+                 jugadores: list, perfiles: dict):
+        super().__init__(master, bg=PALETA["bg"])
+        self.modo         = modo
+        self.max_rondas   = max_rondas
+        self.jugadores    = jugadores
+        self.perfiles     = perfiles
+        self.tema         = TEMAS[modo]
+        self.puntos       = {j: 0 for j in jugadores}
+        self.rondas       = 0
+        self.elecciones   = {}
+        self.turno_actual = 0
+        self._bloqueado   = False
+        self._cb_ronda    = None
+        self.on_salir     = None
+        self._build()
+
+    # ── Construccion de la UI ────────────────────────────────
+    def _build(self):
+        t = self.tema
+        C = PALETA
+
+        # Encabezado
+        hdr = tk.Frame(self, bg=C["panel"], pady=8)
+        hdr.pack(fill="x")
+        titulos = {1: "vs Maquina", 2: "2 Jugadores", 3: "3 Jugadores"}
+        mk_label(hdr, f"o  SPACE RPS -- {titulos[self.modo]}  o",
+                 t["accent"], FUENTES["bold"]).pack(side="left", padx=16)
+        pf = tk.Frame(hdr, bg=C["panel"])
+        pf.pack(side="left", expand=True)
+        self._lbl_prog = mk_label(pf, self._txt_prog(), t["gold"], FUENTES["small"])
+        self._lbl_prog.pack()
+        self._cv_prog  = tk.Canvas(pf, width=260, height=6,
+                                   bg=C["card"], highlightthickness=0)
+        self._cv_prog.pack()
+        self._barra = self._cv_prog.create_rectangle(
+            0, 0, 0, 6, fill=t["accent"], outline="")
+        mk_btn(hdr, "MENU", C["card"], t["accent"],
+               self._salir, px=10, py=4).pack(side="right", padx=10)
+
+        # Marcador
+        self._fr_scores = tk.Frame(self, bg=C["bg"])
+        self._fr_scores.pack(fill="x", padx=16, pady=(8, 4))
+        self._dibujar_marcador()
+
+        # Separador animado
+        self._cv_sep = tk.Canvas(self, height=3, bg=C["bg"], highlightthickness=0)
+        self._cv_sep.pack(fill="x", padx=16)
+        self._sep_off = 0
+        self._animar_sep()
+
+        # Zona central
+        zona = tk.Frame(self, bg=C["bg"])
+        zona.pack(fill="x", padx=16, pady=6)
+
+        self._vista_normal = tk.Frame(zona, bg=C["bg"])
+        self._vista_normal.pack()
+        self._lbl_emoji = mk_label(
+            self._vista_normal, "?", t["muted"], ("Segoe UI Emoji", 42))
+        self._lbl_emoji.pack()
+        self._lbl_res = mk_label(
+            self._vista_normal, "Selecciona tu arma!", t["text"], FUENTES["bold"])
+        self._lbl_res.pack()
+
+        self._vista_cd = tk.Frame(zona, bg=C["bg"])
+        self._lbl_cd   = tk.Label(self._vista_cd, text="3",
+                                  bg=C["bg"], fg=t["accent"],
+                                  font=("Consolas", 72, "bold"))
+        self._lbl_cd.pack(pady=4)
+
+        self._vista_descanso = tk.Frame(zona, bg=C["bg"])
+        mk_label(self._vista_descanso, "🚀", C["gold"],
+                 ("Segoe UI Emoji", 40)).pack(pady=(4, 0))
+        self._lbl_descanso = mk_label(
+            self._vista_descanso, "Ronda siguiente",
+            t["gold"], ("Consolas", 16, "bold"))
+        self._lbl_descanso.pack(pady=4)
+        mk_btn(self._vista_descanso, "LISTOS  >", t["accent2"], C["bg"],
+               self._iniciar_ronda, px=20, py=8).pack(pady=4)
+
+        # Turno (multiplayer)
+        self._lbl_turno = mk_label(self, "", t["gold"], FUENTES["small"])
+        if self.modo > 1:
+            self._lbl_turno.pack(pady=2)
+            self._dibujar_turno()
+
+        # Botones de opciones
+        btns_f = tk.Frame(self, bg=C["bg"])
+        btns_f.pack(pady=6)
+        self._btns = {}
+        for op in OPCIONES:
+            col = tk.Frame(btns_f, bg=C["bg"])
+            col.pack(side="left", padx=6)
+            em = mk_label(col, EMOJIS[op], t["text"], ("Segoe UI Emoji", 30))
+            em.pack()
+            b = tk.Button(col, text=op, width=8,
+                          bg=C["card"], fg=t["text"],
+                          font=("Consolas", 10), relief="flat", bd=0,
+                          padx=5, pady=7, cursor="hand2",
+                          activebackground=t["btn_h"], activeforeground=C["bg"],
+                          command=lambda o=op: self._elegir(o))
+            b.pack(pady=2)
+            b.bind("<Enter>", lambda _, btn=b, lb=em: (
+                btn.configure(bg=t["btn_h"]),
+                lb.configure(font=("Segoe UI Emoji", 36))))
+            b.bind("<Leave>", lambda _, btn=b, lb=em: (
+                btn.configure(bg=C["card"]),
+                lb.configure(font=("Segoe UI Emoji", 30))))
+            em.bind("<Button-1>", lambda _, o=op: self._elegir(o))
+            self._btns[op] = (b, em)
+
+        # Reglas
+        rf = tk.Frame(self, bg=C["panel"], padx=8, pady=4)
+        rf.pack(fill="x", padx=20, pady=(2, 3))
+        mk_label(rf, "REGLAS", t["gold"], ("Consolas", 8, "bold")).pack(anchor="w")
+        mk_label(rf, "  |  ".join(REGLAS.values()),
+                 C["text2"], ("Consolas", 6), wrap=880).pack(anchor="w")
+
+        # Historial
+        mk_label(self, "Historial", C["text2"], FUENTES["small"]).pack(
+            anchor="w", padx=20)
+        self._txt_log = tk.Text(
+            self, height=3, bg=C["panel"], fg=t["text"],
+            font=("Consolas", 8), relief="flat", bd=0,
+            state="disabled", padx=6, pady=3)
+        self._txt_log.pack(fill="x", padx=20, pady=(2, 4))
+
+    # ── Animaciones ──────────────────────────────────────────
+    def _animar_sep(self):
+        self._sep_off = (self._sep_off + 5) % 1100
+        x1 = self._sep_off - 200
+        self._cv_sep.delete("all")
+        self._cv_sep.create_rectangle(
+            x1, 0, self._sep_off, 3, fill=self.tema["accent"], outline="")
+        self.after(16, self._animar_sep)
+
+    def _cuenta_regresiva(self, callback):
+        self._bloqueado = True
+        t     = self.tema
+        pasos = [("3", PALETA["teal"], 800),
+                 ("2", PALETA["gold"], 800),
+                 ("1", t["accent"],    800),
+                 ("YA!", t["win"],     600)]
+
+        def paso(i=0):
+            if i < len(pasos):
+                txt, col, delay = pasos[i]
+                fs = 72 if txt != "YA!" else 34
+                self._lbl_cd.configure(text=txt, fg=col,
+                                       font=("Consolas", fs, "bold"))
+                self._vista_normal.pack_forget()
+                self._vista_cd.pack()
+                self.after(delay, lambda: paso(i + 1))
+            else:
+                self._vista_cd.pack_forget()
+                self._vista_normal.pack()
+                self._bloqueado = False
+                callback()
+        paso()
+
+    def _animar_resultado(self, color, paso=0):
+        if paso >= 6:
+            self._lbl_res.configure(fg=color)
+            return
+        c = color if paso % 2 == 0 else self.tema["text"]
+        self._lbl_res.configure(fg=c)
+        self.after(90, lambda: self._animar_resultado(color, paso + 1))
+
+    def _slot_emoji(self, seq, i=0):
+        if i < len(seq):
+            self._lbl_emoji.configure(text=seq[i])
+            self.after(65, lambda: self._slot_emoji(seq, i + 1))
+
+    def _pulso_btn(self, op: str):
+        if op not in self._btns:
+            return
+        btn, _ = self._btns[op]
+        cols   = [self.tema["win"], PALETA["card"]] * 4
+        def paso(i=0):
+            if i < len(cols):
+                btn.configure(bg=cols[i])
+                self.after(75, lambda: paso(i + 1))
+        paso()
+
+    # ── Gestion de vistas de ronda ───────────────────────────
+    def _mostrar_descanso(self, callback):
+        self._cb_ronda  = callback
+        self._bloqueado = True
+        self._vista_normal.pack_forget()
+        self._vista_cd.pack_forget()
+        sig = self.rondas + 1
+        self._lbl_descanso.configure(
+            text=f"Ronda {sig} de {self.max_rondas}  --  listos?")
+        self._vista_descanso.pack()
+
+    def _iniciar_ronda(self):
+        self._vista_descanso.pack_forget()
+        self._vista_normal.pack()
+        cb, self._cb_ronda = self._cb_ronda, None
+        self._cuenta_regresiva(cb)
+
+    # ── Actualizacion de widgets ─────────────────────────────
+    def _dibujar_marcador(self):
+        for w in self._fr_scores.winfo_children():
+            w.destroy()
+        t = self.tema
+        C = PALETA
+        for j in self.jugadores:
+            av   = self.perfiles.get(j, {}).get("avatar", "🚀")
+            card = tk.Frame(self._fr_scores, bg=C["card"], padx=12, pady=6)
+            card.pack(side="left", expand=True, fill="x", padx=4)
+            mk_label(card, av, t["text"], ("Segoe UI Emoji", 16)).pack()
+            mk_label(card, j, t["muted"], FUENTES["small"]).pack()
+            mk_label(card, str(self.puntos[j]), t["win"],
+                     ("Consolas", 26, "bold")).pack()
+
+    def _dibujar_turno(self):
+        j  = self.jugadores[self.turno_actual]
+        av = self.perfiles.get(j, {}).get("avatar", "🚀")
+        self._lbl_turno.configure(text=f"{av}  Turno de {j}  -- elige en secreto")
+
+    def _actualizar_barra(self):
+        pct = min(self.rondas / self.max_rondas, 1.0)
+        self._cv_prog.coords(self._barra, 0, 0, int(260 * pct), 6)
+        self._lbl_prog.configure(text=self._txt_prog())
+
+    def _txt_prog(self) -> str:
+        return f"Ronda {self.rondas} / {self.max_rondas}"
+
+    def _log(self, texto: str):
+        self._txt_log.configure(state="normal")
+        self._txt_log.insert("end", texto + "\n")
+        self._txt_log.see("end")
+        self._txt_log.configure(state="disabled")
+
+    # ── Logica principal ─────────────────────────────────────
+    def _elegir(self, opcion: str):
+        if self._bloqueado:
+            return
+        if self.modo == 1:
+            self._bloqueado = True
+            cb = lambda: self._vs_maquina(opcion)
+            if self.rondas == 0:
+                self._cuenta_regresiva(cb)
+            else:
+                self._mostrar_descanso(cb)
+        else:
+            j = self.jugadores[self.turno_actual]
+            self.elecciones[j] = opcion
+            self._lbl_res.configure(
+                text=f"{j} eligio en secreto.", fg=self.tema["gold"])
+            self._lbl_emoji.configure(text="?")
+            self.turno_actual += 1
+            if self.turno_actual < len(self.jugadores):
+                self._dibujar_turno()
+            else:
+                self._bloqueado = True
+                cb = self._resolver_multi
+                if self.rondas == 0:
+                    self.after(200, lambda: self._cuenta_regresiva(cb))
+                else:
+                    self.after(200, lambda: self._mostrar_descanso(cb))
+
+    def _vs_maquina(self, eleccion: str):
+        self._bloqueado = True
+        maquina         = random.choice(OPCIONES)
+        self.rondas    += 1
+        res, razon      = resolver(eleccion, maquina)
+        j1              = self.jugadores[0]
+
+        seq = [EMOJIS[random.choice(OPCIONES)] for _ in range(10)]
+        seq.append(f"{EMOJIS[eleccion]} vs {EMOJIS[maquina]}")
+        self._slot_emoji(seq)
+
+        def mostrar():
+            if res == "a":
+                color, msg = self.tema["win"], f"Ganaste!  {razon}"
+                self.puntos[j1] += 1
+                actualizar_stats(self.perfiles, j1, gano=True)
+                self._pulso_btn(eleccion)
+            elif res == "b":
+                color, msg = self.tema["lose"], f"Perdiste.  {razon}"
+                self.puntos["Maquina"] = self.puntos.get("Maquina", 0) + 1
+                actualizar_stats(self.perfiles, j1, gano=False)
+            else:
+                color, msg = self.tema["tie"], f"Empate.  Ambos: {eleccion}"
+                actualizar_stats(self.perfiles, j1, gano=False)
+
+            self._lbl_emoji.configure(
+                text=f"{EMOJIS[eleccion]}  vs  {EMOJIS[maquina]}")
+            self._lbl_res.configure(text=msg)
+            self._animar_resultado(color)
+            self._log(f"R{self.rondas}: Tu={eleccion} Maq={maquina} --> {msg}")
+            self._dibujar_marcador()
+            self._actualizar_barra()
+            self._bloqueado = False
+            if self.rondas >= self.max_rondas:
+                self.after(900, self._fin)
+
+        self.after(len(seq) * 65 + 120, mostrar)
+
+    def _resolver_multi(self):
+        self.rondas += 1
+        js      = self.jugadores
+        elec    = self.elecciones
+        resumen = "  |  ".join(f"{j}:{EMOJIS[elec[j]]}" for j in js)
+
+        if self.modo == 2:
+            j1, j2 = js[0], js[1]
+            res, razon = resolver(elec[j1], elec[j2])
+            if res == "a":
+                ganadores = [j1]; self.puntos[j1] += 1
+            elif res == "b":
+                ganadores = [j2]; self.puntos[j2] += 1
+            else:
+                ganadores = []; razon = "Empate"
+        else:
+            pts, razones = {j: 0 for j in js}, []
+            for i, ja in enumerate(js):
+                for jb in js[i + 1:]:
+                    r, rz = resolver(elec[ja], elec[jb])
+                    razones.append(rz)
+                    if r == "a":   pts[ja] += 1
+                    elif r == "b": pts[jb] += 1
+            mp        = max(pts.values())
+            ganadores = [j for j, p in pts.items() if p == mp]
+            if len(ganadores) == len(js): ganadores = []
+            razon = " | ".join(dict.fromkeys(razones))
+            for j in ganadores: self.puntos[j] += 1
+
+        seq = [EMOJIS[random.choice(OPCIONES)] for _ in range(10)] + ["!"]
+        self._slot_emoji(seq)
+
+        def mostrar():
+            if ganadores:
+                color = self.tema["win"]
+                txt   = f"Gana: {', '.join(ganadores)}!  {razon}"
+                for j in ganadores:
+                    actualizar_stats(self.perfiles, j, gano=True)
+            else:
+                color = self.tema["tie"]
+                txt   = f"Empate!  {razon}"
+
+            self._lbl_emoji.configure(text="!")
+            self._lbl_res.configure(text=f"{resumen}\n{txt}", fg=color)
+            self._animar_resultado(color)
+            self._log(f"R{self.rondas}: {resumen} --> {txt}")
+            self._dibujar_marcador()
+            self._actualizar_barra()
+            self.elecciones   = {}
+            self.turno_actual = 0
+            self._dibujar_turno()
+            self._bloqueado = False
+            if self.rondas >= self.max_rondas:
+                self.after(900, self._fin)
+
+        self.after(len(seq) * 65 + 120, mostrar)
+
+    def _fin(self):
+        C  = PALETA
+        t  = self.tema
+        mp = max(self.puntos.values())
+        campeones = [j for j, p in self.puntos.items() if p == mp]
+
+        v = tk.Toplevel(self)
+        v.title("FIN DEL JUEGO")
+        v.configure(bg=C["bg"])
+        v.resizable(False, False)
+        v.grab_set()
+        v.geometry("440x360")
+        v.update_idletasks()
+        x = (v.winfo_screenwidth()  - 440) // 2
+        y = (v.winfo_screenheight() - 360) // 2
+        v.geometry(f"440x360+{x}+{y}")
+
+        mk_label(v, "o  FIN DEL JUEGO  o",
+                 t["gold"], ("Consolas", 16, "bold")).pack(pady=(22, 8))
+
+        if len(campeones) == 1:
+            av  = self.perfiles.get(campeones[0], {}).get("avatar", "🏆")
+            msg = f"{av}  {campeones[0]} gana!"
+            col = t["win"]
+        else:
+            msg = f"Empate: {', '.join(campeones)}"
+            col = t["tie"]
+        mk_label(v, msg, col, ("Consolas", 14, "bold")).pack(pady=4)
+
+        medallas = ["1ro", "2do", "3ro"]
+        for i, (j, p) in enumerate(sorted(self.puntos.items(), key=lambda x: -x[1])):
+            fila = tk.Frame(v, bg=C["card"], padx=16, pady=5)
+            fila.pack(fill="x", padx=30, pady=3)
+            av     = self.perfiles.get(j, {}).get("avatar", "🚀")
+            medalla = medallas[i] if i < len(medallas) else " "
+            mk_label(fila, f"{medalla}  {av}  {j}",
+                     C["text"], FUENTES["normal"]).pack(side="left")
+            mk_label(fila, f"{p} pts", t["win"],
+                     ("Consolas", 13, "bold")).pack(side="right")
+
+        bf = tk.Frame(v, bg=C["bg"])
+        bf.pack(pady=16)
+        mk_btn(bf, "Otra vez", t["accent2"], C["bg"],
+               lambda: [v.destroy(), self._reiniciar()],
+               px=14, py=8).pack(side="left", padx=8)
+        mk_btn(bf, "Menu", C["card"], C["text2"],
+               lambda: [v.destroy(), self._salir()],
+               px=14, py=8).pack(side="left", padx=8)
+
+    def _reiniciar(self):
+        self.puntos       = {j: 0 for j in self.jugadores}
+        self.rondas       = 0
+        self.elecciones   = {}
+        self.turno_actual = 0
+        self._bloqueado   = False
+        self._lbl_emoji.configure(text="?", fg=self.tema["muted"])
+        self._lbl_res.configure(text="Selecciona tu arma!", fg=self.tema["text"])
+        self._txt_log.configure(state="normal")
+        self._txt_log.delete("1.0", "end")
+        self._txt_log.configure(state="disabled")
+        self._dibujar_marcador()
+        self._actualizar_barra()
+        if self.modo > 1:
+            self._dibujar_turno()
+
+    def _salir(self):
+        if self.on_salir:
+            self.on_salir()
+
+
+# ══════════════════════════════════════════════════════════════
+#  MENU PRINCIPAL
+# ══════════════════════════════════════════════════════════════
+class MenuPrincipal(tk.Frame):
+
+    def __init__(self, master, nombre: str, datos: dict,
+                 on_nueva_partida, on_cambiar_perfil):
+        super().__init__(master, bg=PALETA["bg"])
+        C = PALETA
+        FondoEstelar(self, master.W, master.H).place(x=0, y=0)
+
+        overlay = tk.Frame(self, bg=C["bg"])
+        overlay.place(relx=0.5, rely=0.5, anchor="center")
+
+        wins  = datos.get("wins", 0)
+        games = datos.get("games", 0)
+
+        mk_label(overlay, datos.get("avatar", "🚀"), C["text"],
+                 ("Segoe UI Emoji", 50)).pack(pady=(0, 4))
+        mk_label(overlay, nombre.upper(), C["gold"], FUENTES["large"]).pack()
+        mk_label(overlay,
+                 f"{datos.get('edad','?')} anos . {datos.get('genero','-')}",
+                 C["text2"], FUENTES["small"]).pack(pady=(2, 2))
+        mk_label(overlay,
+                 f"Partidas: {games}  |  Victorias: {wins}  |  Win rate: {win_rate(wins, games)}",
+                 C["teal"], FUENTES["small"]).pack(pady=(0, 20))
+
+        mk_label(overlay, "Piedra . Papel . Tijera . Lagarto . Spock",
+                 C["accent"], ("Consolas", 15, "bold")).pack(pady=(0, 4))
+        mk_label(overlay, "SPACE RPS  --  Edicion Clasica",
+                 C["text2"], FUENTES["small"]).pack(pady=(0, 22))
+
+        mk_btn(overlay, "NUEVA PARTIDA", C["accent2"], C["bg"],
+               on_nueva_partida, px=24, py=12).pack(pady=6, fill="x")
+        mk_btn(overlay, "CAMBIAR PERFIL", C["card"], C["text2"],
+               on_cambiar_perfil, px=24, py=10).pack(pady=4, fill="x")
+
+        mk_sep(overlay, C["accent"]).pack(fill="x", pady=12)
+        mk_label(overlay, "SPACE RPS  v2.0", C["text2"], ("Consolas", 8)).pack()
+
+
+# ══════════════════════════════════════════════════════════════
+#  APLICACION PRINCIPAL
+# ══════════════════════════════════════════════════════════════
+class App(tk.Tk):
+    W, H = 900, 640
+
+    def __init__(self):
+        super().__init__()
+        self.title("SPACE RPS -- Piedra . Papel . Tijera . Lagarto . Spock")
+        self.configure(bg=PALETA["bg"])
+        self.resizable(False, False)
+        self._centrar()
+        self._perfil_activo = None
+        self._perfiles      = cargar_perfiles()
+        self._frame         = None
+        self._ir_login()
+
+    def _centrar(self):
+        self.geometry(f"{self.W}x{self.H}")
+        self.update_idletasks()
+        x = (self.winfo_screenwidth()  - self.W) // 2
+        y = (self.winfo_screenheight() - self.H) // 2
+        self.geometry(f"{self.W}x{self.H}+{x}+{y}")
+
+    def _cambiar_frame(self, nuevo: tk.Frame):
+        if self._frame:
+            self._frame.destroy()
+        self._frame = nuevo
+        nuevo.place(x=0, y=0, width=self.W, height=self.H)
+
+    def _ir_login(self):
+        self._cambiar_frame(PantallaLogin(self, self._post_login))
+
+    def _post_login(self, nombre: str, datos: dict):
+        self._perfil_activo = datos
+        self._perfiles      = cargar_perfiles()
+        self._ir_menu(nombre, datos)
+
+    def _ir_menu(self, nombre: str, datos: dict):
+        self._cambiar_frame(MenuPrincipal(
+            self, nombre, datos,
+            on_nueva_partida=lambda: self._configurar_partida(nombre, datos),
+            on_cambiar_perfil=self._ir_login,
+        ))
+
+    def _configurar_partida(self, nombre: str, datos: dict):
+        self._perfiles = cargar_perfiles()
+        dlg = DialogoPartida(self, datos, self._perfiles)
+        self.wait_window(dlg)
+        if dlg.resultado is None:
+            return
+        modo, rondas, jugadores = dlg.resultado
+        self._iniciar_juego(modo, rondas, jugadores, nombre)
+
+    def _iniciar_juego(self, modo: int, rondas: int,
+                       jugadores: list, perfil_principal: str):
+        self._perfiles = cargar_perfiles()
+        juego = VentanaJuego(self, modo, rondas, jugadores, self._perfiles)
+        self._cambiar_frame(juego)
+        juego.on_salir = lambda: self._post_juego(perfil_principal)
+
+    def _post_juego(self, nombre: str):
+        self._perfiles = cargar_perfiles()
+        datos = self._perfiles.get(nombre, self._perfil_activo)
+        self._ir_menu(nombre, datos)
+
+
+# ══════════════════════════════════════════════════════════════
+if __name__ == "__main__":
+    App().mainloop()
